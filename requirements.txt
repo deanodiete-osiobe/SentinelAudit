@@ -3,4 +3,4 @@ XlsxWriter>=3.2
 pywebview>=5.4
 pyinstaller>=6.0
 pillow>=10.0
-ruff>=0.6
+ruff>=0.17.4
