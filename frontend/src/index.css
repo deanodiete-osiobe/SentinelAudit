@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* Tailwind v4 reads theme tokens from CSS, not tailwind.config.ts. Every
+   custom utility used in the app (bg-bg-1, text-neon-cyan, shadow-neon, …)
+   must be declared here or it compiles to nothing. */
+@theme {
+  --color-bg-0: #0c121b;
+  --color-bg-1: #111a25;
+  --color-bg-2: #172332;
+
+  --color-neon-cyan: #67dfca;
+  --color-neon-green: #88e4c5;
+  --color-neon-amber: #fbbf24;
+  --color-neon-red: #fb7185;
+  --color-neon-purple: #a78bfa;
+
+  --shadow-neon: 0 1px 4px rgba(0, 0, 0, 0.12);
+
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: Consolas, ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+  background: radial-gradient(1100px 650px at 15% 85%, rgba(34, 211, 238, 0.08), transparent 65%),
+    linear-gradient(170deg, #060910 0%, #0a0f1e 55%, #0b1020 100%);
+  color: #e5e7eb;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Override Tailwind's `outline-none` on inputs/textareas/selects when the
+   element is focused via keyboard. Higher specificity than the utility class
+   so we don't have to remove `outline-none` everywhere. */
+html input:focus-visible,
+html textarea:focus-visible,
+html select:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.55);
+  outline-offset: 2px;
+}
+
+button, a, select,
+input[type="checkbox"], input[type="radio"],
+input[type="submit"], input[type="button"], input[type="reset"],
+input[type="file"], input[type="range"],
+label[for], [role="button"], [role="tab"],
+[role="option"], [role="menuitem"], [role="checkbox"],
+[role="radio"], [role="switch"] {
+  cursor: pointer;
+}
+
+button:disabled, a[aria-disabled="true"],
+select:disabled, input:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.5) rgba(15, 23, 42, 0.6);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.6), rgba(167, 139, 250, 0.45));
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, 0.6);
+}
+
+/* Shared Sentinel design foundation */
+body{background:#0c121b;color:#e8eef5;font-family:Inter,'Segoe UI',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.sentinel-shell h1{font-size:clamp(26px,3vw,36px);font-weight:600;letter-spacing:-.045em;line-height:1.2}
+.sentinel-shell header>div:last-child{flex-wrap:wrap}
+.sentinel-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.sentinel-overview>button,.sentinel-overview>div{text-align:left;padding:20px;border:1px solid #263549;border-radius:12px;background:#111a25;color:#e8eef5;min-width:0}
+.sentinel-overview>button:hover{background:#172332;border-color:#67dfca66}
+.sentinel-overview span{display:block;font-size:12px;color:#9aaabd}
+.sentinel-overview strong{display:block;margin:12px 0;font-size:36px;font-weight:550;letter-spacing:-.05em;line-height:1.2}
+.sentinel-overview strong.sentinel-state{font-size:20px;letter-spacing:-.025em;margin:19px 0}
+.sentinel-overview small{display:block;color:#9aaabd;font-size:11px;line-height:1.6}
+.sentinel-filters{display:flex;gap:12px;padding:16px 20px;border-bottom:1px solid #263549;flex-wrap:wrap}
+.sentinel-filters label{font-size:11px;color:#9aaabd;display:flex;flex-direction:column;gap:6px}
+.sentinel-filters .sentinel-search{flex:1;min-width:170px}
+.sentinel-filters input,.sentinel-filters select{font:inherit;font-size:12px;min-height:40px;padding:9px 10px;border:1px solid #334458;border-radius:8px;background:#0c121b;color:#e8eef5;width:100%}
+.sentinel-feed{max-height:78vh}.sentinel-feed pre{overflow:auto;max-width:100%;font-size:11px}
+@media(max-width:1000px){.sentinel-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.sentinel-feed{max-height:none}}
+@media(max-width:640px){.sentinel-shell{padding:20px 14px;gap:18px}.sentinel-overview{gap:10px}.sentinel-overview>button,.sentinel-overview>div{padding:15px}.sentinel-overview strong{font-size:28px}.sentinel-filters label{flex:1}.sentinel-filters .sentinel-search{flex-basis:100%}.sentinel-feed>div:first-child{padding:16px}.sentinel-feed .font-mono{overflow-wrap:anywhere}.sentinel-shell header button{min-height:42px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+@media(max-width:640px){.sentinel-finding-layout{flex-direction:column;align-items:stretch}.sentinel-finding-copy{width:100%;flex-basis:auto}.sentinel-finding-copy>div:first-child{flex-wrap:wrap}.sentinel-finding-layout>div:last-child{flex-wrap:wrap}.sentinel-finding-copy .font-mono{overflow-wrap:normal;word-break:normal}.sentinel-finding-copy .truncate{max-width:100%}}
+
+.export-notice-region{position:fixed;right:20px;bottom:20px;z-index:200;width:min(440px,calc(100vw - 32px));pointer-events:none}.export-notice{display:flex;align-items:flex-start;gap:16px;padding:16px 18px;border:1px solid #3e8e80;border-radius:12px;background:#12251f;color:#e5f7f1;box-shadow:0 12px 38px #0005;pointer-events:auto}.export-notice strong{font-size:14px;font-weight:600}.export-notice p{font-size:12px;line-height:1.5;color:#b6cec6;margin:6px 0 0;overflow-wrap:anywhere}.export-notice button{padding:4px;flex-shrink:0;border-radius:6px;color:inherit}.export-notice button:focus-visible{outline:2px solid #67dfca;outline-offset:2px}
+
+.sentinel-score-panel { display: grid; justify-items: center; margin: 1.5rem 0; min-width: 0; }
+.sentinel-score-gauge { width: min(100%, 200px); flex-shrink: 0; }
+.sentinel-score-title { text-align: center; margin-bottom: 1rem; font-size: .875rem; color: #aec1d2; }
+.sentinel-scan-progress { display: grid; gap: .65rem; padding: 1rem; border: 1px solid #294351; border-radius: .75rem; background: #12202a; font-size: .875rem; overflow-wrap: anywhere; }
+.sentinel-scan-progress p { margin: 0; line-height: 1.55; }
+.sentinel-scan-progress small { color: #9aafc1; }
+.sentinel-scan-progress progress { width: 100%; height: .45rem; accent-color: #5eead4; }
+.sentinel-sync-status { margin: 1rem 0; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+.sentinel-scan-progress progress { appearance: none; border: 0; border-radius: 1rem; overflow: hidden; background: #243746; }
+.sentinel-scan-progress progress::-webkit-progress-bar { background: #243746; }
+.sentinel-scan-progress progress::-webkit-progress-value { background: #5eead4; border-radius: 1rem; }
+.sentinel-scan-progress progress::-moz-progress-bar { background: #5eead4; }

@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.spec
+*.spec.bak/
+
+# Logs
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment/config
+.env
+.env.*
+config.local.json
+secrets.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Coverage
+coverage/
+htmlcov/
+
+# PyInstaller
+*.manifest
+*.exe
+*.dll
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+# Keep the desktop build recipe in source control.
+!SentinelAudit.spec
+frontend/*.tsbuildinfo
+qa/

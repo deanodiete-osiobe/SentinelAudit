@@ -1,0 +1,27 @@
+SentinelAudit Security Hardening Changes
+=======================================
+
+Implemented Fixes
+-----------------
+- Removed committed node_modules, dist, cache, and bytecode artifacts
+- Replaced .gitignore with hardened version
+- Added SECURITY.md
+- Added .env.example
+- Added GitHub Actions security scanning workflow
+- Added structured rotating file logging
+- Hardened rollback storage handling
+- Improved exception handling
+- Improved HTTP server thread lifecycle handling
+
+Recommended Next Steps
+----------------------
+1. Run:
+   pip install bandit pip-audit
+   bandit -r .
+   pip-audit
+
+2. Frontend:
+   npm audit --audit-level=high
+
+3. Before publishing:
+   git rm -r --cached frontend/node_modules frontend/dist

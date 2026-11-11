@@ -1,0 +1,35 @@
+name: Security Scans
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install security tools
+        run: |
+          pip install bandit pip-audit
+
+      - name: Run Bandit
+        run: bandit -r .
+
+      - name: Run pip-audit
+        run: pip-audit || true
+
+      - name: Run npm audit
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend
+            npm audit --audit-level=high || true
+          fi

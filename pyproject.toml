@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["frontend", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
