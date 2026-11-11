@@ -1,6 +1,6 @@
 pydantic==2.14.0
 XlsxWriter>=3.2
-pywebview>=5.4
+pywebview>=6.2.1
 pyinstaller>=6.0
 pillow>=10.0
 ruff>=0.6
