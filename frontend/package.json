@@ -14,7 +14,7 @@
     "motion": "^12.40.0",
     "react": "^19.2.5",
     "react-circular-progressbar": "^2.2.0",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -22,7 +22,7 @@
     "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
     "eslint": "^10.2.1",
