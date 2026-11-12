@@ -14,7 +14,8 @@ class RiskLevel(str, Enum):
 
 
 class FindingStatus(str, Enum):
-    pass_ = "Pass"
+    # Finding status label, not an authentication secret.
+    pass_ = "Pass"  # nosec B105
     fail = "Fail"
     unknown = "Unknown"
 

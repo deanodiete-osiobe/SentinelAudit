@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
+import ntpath
 import ctypes
 import base64
 import json
 import os
-import subprocess
+# Required for reviewed Windows audit commands; no shell execution.
+import subprocess  # nosec B404
 import sys
 import tempfile
 import threading
@@ -15,6 +18,8 @@ from hashlib import pbkdf2_hmac, sha256
 from typing import Any
 
 import winreg
+
+logger = logging.getLogger(__name__)
 
 
 def is_admin() -> bool:
@@ -37,6 +42,34 @@ class CommandResult:
     exit_code: int
 
 
+def _system_tool_path(name: str) -> str:
+    """Resolve only supported tools beneath the OS-reported system directory.
+
+    Do not trust the working directory, PATH or a caller-supplied executable path
+    when running elevated audit/remediation commands.
+    """
+    tools = {
+        "net": "net.exe", "net.exe": "net.exe",
+        "reg": "reg.exe", "reg.exe": "reg.exe",
+        "sc": "sc.exe", "sc.exe": "sc.exe",
+        "netsh": "netsh.exe", "netsh.exe": "netsh.exe",
+        "auditpol": "auditpol.exe", "auditpol.exe": "auditpol.exe",
+        "secedit.exe": "secedit.exe",
+        "powershell": r"WindowsPowerShell\v1.0\powershell.exe",
+        "powershell.exe": r"WindowsPowerShell\v1.0\powershell.exe",
+    }
+    relative = tools.get(name.lower())
+    if relative is None:
+        raise ValueError("Unsupported audit executable")
+    if sys.platform != "win32":
+        raise OSError("Windows audit commands require Windows")
+    directory = ctypes.create_unicode_buffer(32768)
+    length = ctypes.windll.kernel32.GetSystemDirectoryW(directory, len(directory))
+    if not 0 < length < len(directory):
+        raise OSError("Could not resolve trusted Windows system directory")
+    return ntpath.join(directory.value, relative)
+
+
 def run_cmd(args: list[str], timeout_s: float = 10.0) -> CommandResult:
     """
     Execute a command with stdout/stderr capture.
@@ -57,8 +90,15 @@ def run_cmd(args: list[str], timeout_s: float = 10.0) -> CommandResult:
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = 0
 
-    completed = subprocess.run(
-        args,
+    if not isinstance(args, list) or not args or not all(isinstance(arg, str) and "\0" not in arg for arg in args):
+        raise ValueError("Command must be a nonempty list of strings without NUL characters")
+    if not 0 < timeout_s <= 120:
+        raise ValueError("Command timeout must be between 0 and 120 seconds")
+    # Only supported OS-directory tools; internal argument lists; shell disabled.
+    command = [_system_tool_path(args[0]), *args[1:]]
+    completed = subprocess.run(  # nosec B603
+        command,
+        shell=False,
         capture_output=True,
         text=True,
         timeout=timeout_s,
@@ -226,7 +266,8 @@ def read_remediation_audit_log(limit: int = 2000) -> list[dict[str, Any]]:
             continue
         try:
             obj = json.loads(raw)
-        except Exception:
+        except json.JSONDecodeError:
+            logger.warning("Skipping malformed remediation audit record")
             continue
         if isinstance(obj, dict):
             entries.append(obj)
@@ -334,14 +375,14 @@ def backup_registry_keys(save_path: str) -> tuple[bool, str | None]:
                             parts.append(body.rstrip("\r\n") + "\r\n\r\n")
                             exported_any = True
                 except Exception:
-                    pass
+                    logger.warning("backup_registry_keys: optional operation or cleanup failed; inspect application state")
         except Exception:
-            pass
+            logger.warning("backup_registry_keys: optional operation or cleanup failed; inspect application state")
         finally:
             try:
                 os.unlink(tmp)
             except Exception:
-                pass
+                logger.warning("backup_registry_keys: optional operation or cleanup failed; inspect application state")
 
     if not exported_any:
         return (False, "No registry keys could be exported. Make sure the app is running as Administrator.")
@@ -460,7 +501,7 @@ def _credman_read(target: str) -> tuple[str | None, bytes | None]:
         try:
             ctypes.windll.advapi32.CredFree(pcred)
         except Exception:
-            pass
+            logger.warning("_credman_read: optional operation or cleanup failed; inspect application state")
 
 
 def _credman_write(*, target: str, username: str, blob: bytes) -> bool:
@@ -569,7 +610,7 @@ def _load_admin_credential() -> AdminCredential | None:
             reg_delete_value(winreg.HKEY_LOCAL_MACHINE, _ADMIN_REG_PATH, _ADMIN_HASH_KEY)
             reg_delete_value(winreg.HKEY_LOCAL_MACHINE, _ADMIN_REG_PATH, _ADMIN_ITER_KEY)
         except Exception:
-            pass
+            logger.warning("_load_admin_credential: optional operation or cleanup failed; inspect application state")
         return migrated
     if uname:
         return None
@@ -591,7 +632,7 @@ def _write_auth_dword(name: str, value: int) -> None:
     try:
         reg_set_dword(winreg.HKEY_LOCAL_MACHINE, _AUTH_REG_PATH, name, int(value))
     except OSError:
-        pass
+        logger.warning("_write_auth_dword: optional operation or cleanup failed; inspect application state")
 
 
 def _reset_lockout_state(prefix: str = "") -> None:
@@ -814,7 +855,7 @@ class TrayController:
             try:
                 ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
             except Exception:
-                pass
+                logger.warning("stop: optional operation or cleanup failed; inspect application state")
 
     def set_score(self, score: int) -> None:
         if not sys.platform.startswith("win"):
@@ -903,7 +944,7 @@ class TrayController:
                         try:
                             self_ref.value._on_open()
                         except Exception:
-                            pass
+                            logger.warning("_run: optional operation or cleanup failed; inspect application state")
                         return 0
                     if lp == WM_RBUTTONUP:
                         try:
@@ -924,7 +965,7 @@ class TrayController:
                             )
                             user32.DestroyMenu(menu)
                         except Exception:
-                            pass
+                            logger.warning("_run: optional operation or cleanup failed; inspect application state")
                         return 0
                     return 0
 
@@ -934,13 +975,13 @@ class TrayController:
                         try:
                             self_ref.value._on_open()
                         except Exception:
-                            pass
+                            logger.warning("_run: optional operation or cleanup failed; inspect application state")
                         return 0
                     if cmd == ID_EXIT:
                         try:
                             self_ref.value._on_exit()
                         except Exception:
-                            pass
+                            logger.warning("_run: optional operation or cleanup failed; inspect application state")
                         return 0
                     return 0
 
@@ -948,7 +989,7 @@ class TrayController:
                     try:
                         user32.PostQuitMessage(0)
                     except Exception:
-                        pass
+                        logger.warning("_run: optional operation or cleanup failed; inspect application state")
                     return 0
 
                 return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -1018,20 +1059,20 @@ class TrayController:
                 nid.uID = 1
                 shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(nid))
             except Exception:
-                pass
+                logger.warning("_run: optional operation or cleanup failed; inspect application state")
 
             try:
                 if self._hicon:
                     user32.DestroyIcon(ctypes.c_void_p(self._hicon))
             except Exception:
-                pass
+                logger.warning("_run: optional operation or cleanup failed; inspect application state")
 
             try:
                 if self._icon_path:
                     Path = __import__("pathlib").Path
                     Path(self._icon_path).unlink(missing_ok=True)
             except Exception:
-                pass
+                logger.warning("_run: optional operation or cleanup failed; inspect application state")
         except Exception as exc:
             self._last_error = f"{type(exc).__name__}: {exc}"
             self._ready.set()
@@ -1119,7 +1160,7 @@ class TrayController:
                 if self._hicon:
                     user32.DestroyIcon(ctypes.c_void_p(self._hicon))
             except Exception:
-                pass
+                logger.warning("_update_icon: optional operation or cleanup failed; inspect application state")
             self._hicon = hicon
 
             try:
@@ -1127,7 +1168,7 @@ class TrayController:
                     Path = __import__("pathlib").Path
                     Path(self._icon_path).unlink(missing_ok=True)
             except Exception:
-                pass
+                logger.warning("_update_icon: optional operation or cleanup failed; inspect application state")
             self._icon_path = icon_path
 
     def _render_score_icon(self, score: int) -> str:
@@ -1160,6 +1201,6 @@ class TrayController:
             try:
                 os.close(fd)
             except Exception:
-                pass
+                logger.warning("_render_score_icon: optional operation or cleanup failed; inspect application state")
             raise
         return path
