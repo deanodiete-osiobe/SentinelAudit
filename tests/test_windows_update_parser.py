@@ -10,7 +10,6 @@ class TestWindowsUpdateParser(unittest.TestCase):
     def test_parse_basic_format(self) -> None:
         dt = _parse_windows_update_time("2026-01-02 03:04:05")
         self.assertIsNotNone(dt)
-        assert dt is not None
         self.assertEqual(dt.tzinfo, timezone.utc)
         self.assertEqual(dt.year, 2026)
         self.assertEqual(dt.month, 1)

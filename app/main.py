@@ -15,8 +15,11 @@ from pathlib import Path
 
 import webview
 
+from sentinelaudit.activity import record_export
+
 
 logger = logging.getLogger("sentinelaudit")
+
 
 def _configure_logging() -> None:
     log_dir = Path.home() / "SentinelAuditLogs"
@@ -36,10 +39,9 @@ def _configure_logging() -> None:
     )
 
 
-
 def _rollback_storage_path() -> Path:
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-    
+
     storage_dir = Path(base) / "SentinelAudit"
     storage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -51,7 +53,7 @@ def _rollback_storage_path() -> Path:
     try:
         os.chmod(rollback_path, 0o600)
     except OSError:
-        pass
+        logger.warning("_rollback_storage_path: optional operation or cleanup failed; inspect application state")
 
     return rollback_path
 
@@ -65,6 +67,7 @@ def _start_local_server(dist_dir: Path) -> tuple[int, str]:
     bundle just by probing 127.0.0.1:<port>/index.html.
     """
     import mimetypes
+
     mimetypes.add_type("application/javascript", ".js")
     mimetypes.add_type("application/javascript", ".mjs")
     mimetypes.add_type("text/css", ".css")
@@ -90,7 +93,7 @@ def _start_local_server(dist_dir: Path) -> tuple[int, str]:
             if not self.path.startswith(token_prefix):
                 self.send_error(404, "not found")
                 return None
-            self.path = self.path[len(token_prefix) - 1:]
+            self.path = self.path[len(token_prefix) - 1 :]
             return super().send_head()
 
         def do_POST(self):  # not used by the UI; reject explicitly
@@ -101,7 +104,7 @@ def _start_local_server(dist_dir: Path) -> tuple[int, str]:
 
     httpd = _LoopbackServer(("127.0.0.1", 0), _Handler)
     port: int = httpd.server_address[1]
-    
+
     server_thread = threading.Thread(
         target=httpd.serve_forever,
         daemon=True,
@@ -190,7 +193,7 @@ def main() -> None:
     webview.start(api.on_start, gui="edgechromium", debug=debug_enabled)
 
 
-from sentinelaudit.activity import record_export
+
 
 class DesktopApi:
     def __init__(self) -> None:
@@ -228,41 +231,50 @@ class DesktopApi:
 
     def _activity(self, action, **details):
         from sentinelaudit.activity import Ledger, activity_directory
+
         with self._activity_lock:
             if self._activity_ledger is None:
-                self._activity_ledger = Ledger(activity_directory()/'activity-ledger.sqlite3')
+                self._activity_ledger = Ledger(activity_directory() / "activity-ledger.sqlite3")
             self._activity_ledger.verify()
-            self._activity_ledger.append({'action':action,'time':time.time(),
-                'actor':self._session_username or 'local-user', **details})
+            self._activity_ledger.append(
+                {"action": action, "time": time.time(), "actor": self._session_username or "local-user", **details}
+            )
             sequence, hashed = self._activity_ledger.verify()
             self._activity_ledger.acknowledge(sequence, hashed)  # local checkpoint, not remote attestation
 
     def sync_last_audit(self):
         from sentinelaudit.sync import queue_report
-        ok,err=self._require_session()
-        if not ok: return err or {'error':'Sign in before syncing.'}
+
+        ok, err = self._require_session()
+        if not ok:
+            return err or {"error": "Sign in before syncing."}
         with self._audit_lock:
-            if self._audit_state.get('running') or not self._last_report:
-                return {'error':'Complete a fresh audit before syncing; cancelled or modified results are not uploaded.'}
-            report=json.loads(json.dumps(self._last_report))
+            if self._audit_state.get("running") or not self._last_report:
+                return {
+                    "error": "Complete a fresh audit before syncing; cancelled or modified results are not uploaded."
+                }
+            report = json.loads(json.dumps(self._last_report))
         try:
-            self._activity('sync_requested',run_id=report['run_id'])
-            result=queue_report(report)
+            self._activity("sync_requested", run_id=report["run_id"])
+            result = queue_report(report)
         except Exception as exc:
-            return {'error':str(exc)}
+            return {"error": str(exc)}
         try:
-            self._activity('sync_queued',run_id=report['run_id'])
+            self._activity("sync_queued", run_id=report["run_id"])
         except Exception:
-            result['warning']='Queued, but the audit-trail outcome could not be recorded.'
-        result['message']='Queued in the local Client. Keep Client running to deliver it; Admin receipt is not yet confirmed.'
+            result["warning"] = "Queued, but the audit-trail outcome could not be recorded."
+        result["message"] = (
+            "Queued in the local Client. Keep Client running to deliver it; Admin receipt is not yet confirmed."
+        )
         return result
 
     def cancel_audit(self):
         with self._audit_lock:
-            if not self._audit_state.get('running'): return {'ok':True,'already_finished':True}
+            if not self._audit_state.get("running"):
+                return {"ok": True, "already_finished": True}
             self._audit_cancel.set()
-            self._audit_state['cancelling']=True
-        return {'ok':True,'message':'Cancellation requested. Waiting for the current Windows check to finish.'}
+            self._audit_state["cancelling"] = True
+        return {"ok": True, "message": "Cancellation requested. Waiting for the current Windows check to finish."}
 
     @staticmethod
     def _load_rollback_cache() -> dict[str, dict[str, object]]:
@@ -288,7 +300,7 @@ class DesktopApi:
         except Exception:
             # Persistence is best-effort; in-memory cache is still authoritative
             # for the current session.
-            pass
+            logger.warning("_save_rollback_cache: optional operation or cleanup failed; inspect application state")
 
     def _splice_finding_and_score(self, updated) -> int:
         """Replace any cached finding with the same id, return new score."""
@@ -458,69 +470,116 @@ class DesktopApi:
         return out or None
 
     def run_audit(self):
-        started=self.start_audit()
-        if started.get('error'):return started
-        thread=self._audit_thread
-        if thread:thread.join()
+        started = self.start_audit()
+        if started.get("error"):
+            return started
+        thread = self._audit_thread
+        if thread:
+            thread.join()
         return self.get_audit_progress()
 
     def start_audit(self) -> dict[str, object]:
         from sentinelaudit.services.audit_registry import load_checks
         from sentinelaudit.windows import is_admin
+
         if is_admin():
-            ok,err=self._require_session()
-            if not ok:return err or {'ok':False,'error':'Sign in before scanning.'}
+            ok, err = self._require_session()
+            if not ok:
+                return err or {"ok": False, "error": "Sign in before scanning."}
         with self._audit_lock:
-            if self._audit_state.get('running'):return {'ok':True,'already_running':True}
+            if self._audit_state.get("running"):
+                return {"ok": True, "already_running": True}
             try:
-                checks=load_checks()
-                self._activity('scan_started',total=len(checks))
+                checks = load_checks()
+                self._activity("scan_started", total=len(checks))
             except Exception:
-                return {'ok':False,'error':'Cannot start: check local storage permissions and audit-trail integrity. Preserve the ledger if verification failed.'}
+                return {
+                    "ok": False,
+                    "error": "Cannot start: check local storage permissions and audit-trail integrity. Preserve the ledger if verification failed.",
+                }
             self._audit_cancel.clear()
-            self._last_report=None
-            self._audit_state={'running':True,'done':False,'cancelled':False,'cancelling':False,
-                'total':len(checks),'completed':0,'hardening_score':0,'findings':[], 'current_check':''}
-            self._audit_thread=threading.Thread(target=self._audit_worker,args=(checks,),name='sentinel-audit',daemon=False)
+            self._last_report = None
+            self._audit_state = {
+                "running": True,
+                "done": False,
+                "cancelled": False,
+                "cancelling": False,
+                "total": len(checks),
+                "completed": 0,
+                "hardening_score": 0,
+                "findings": [],
+                "current_check": "",
+            }
+            self._audit_thread = threading.Thread(
+                target=self._audit_worker, args=(checks,), name="sentinel-audit", daemon=False
+            )
             self._audit_thread.start()
-        return {'ok':True,'already_running':False}
+        return {"ok": True, "already_running": False}
 
     def _audit_worker(self, checks):
-        from datetime import datetime,timezone
+        from datetime import datetime, timezone
         from sentinelaudit.audit.base import CheckContext
-        from sentinelaudit.audit.engine import run_checks,compute_hardening_score,AuditCancelled
+        from sentinelaudit.audit.engine import run_checks, compute_hardening_score, AuditCancelled
         from sentinelaudit.posture import build_posture_report
         from sentinelaudit.windows import is_admin
-        def progress(completed,total,current,findings):
+
+        def progress(completed, total, current, findings):
             with self._audit_lock:
-                self._audit_state.update(completed=completed,total=total,current_check=current,
-                    findings=[f.model_dump(mode='json') for f in findings],
-                    hardening_score=compute_hardening_score(findings))
+                self._audit_state.update(
+                    completed=completed,
+                    total=total,
+                    current_check=current,
+                    findings=[f.model_dump(mode="json") for f in findings],
+                    hardening_score=compute_hardening_score(findings),
+                )
+
         try:
-            result=run_checks(checks,CheckContext(is_admin=is_admin()),cancel=self._audit_cancel,progress=progress)
-            report=build_posture_report(result)
+            result = run_checks(checks, CheckContext(is_admin=is_admin()), cancel=self._audit_cancel, progress=progress)
+            report = build_posture_report(result)
             import hashlib
-            self._activity('scan_completed',run_id=report['run_id'],total=len(result.findings),
-                report_sha256=hashlib.sha256(json.dumps(report,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest())
+
+            self._activity(
+                "scan_completed",
+                run_id=report["run_id"],
+                total=len(result.findings),
+                report_sha256=hashlib.sha256(
+                    json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+                ).hexdigest(),
+            )
             with self._audit_lock:
-                self._last_findings=list(result.findings)
-                self._last_generated_utc=result.generated_utc
-                self._last_report=report
+                self._last_findings = list(result.findings)
+                self._last_generated_utc = result.generated_utc
+                self._last_report = report
         except AuditCancelled as exc:
-            with self._audit_lock:self._audit_state['cancelled']=True
-            try:self._activity('scan_cancelled',completed=len(exc.findings),total=len(checks))
+            with self._audit_lock:
+                self._audit_state["cancelled"] = True
+            try:
+                self._activity("scan_cancelled", completed=len(exc.findings), total=len(checks))
             except Exception:
-                with self._audit_lock:self._audit_state['error']='Cancelled; activity recording failed. Check ledger integrity and storage permissions.'
+                with self._audit_lock:
+                    self._audit_state["error"] = (
+                        "Cancelled; activity recording failed. Check ledger integrity and storage permissions."
+                    )
         except Exception as exc:
-            logger.exception('Audit worker failed')
-            with self._audit_lock:self._audit_state['error']=f'Audit could not complete ({type(exc).__name__}). Check storage permissions, Windows services and the local log, then retry.'
-            try:self._activity('scan_failed',error_type=type(exc).__name__)
-            except Exception:pass
+            logger.exception("Audit worker failed")
+            with self._audit_lock:
+                self._audit_state["error"] = (
+                    f"Audit could not complete ({type(exc).__name__}). Check storage permissions, Windows services and the local log, then retry."
+                )
+            try:
+                self._activity("scan_failed", error_type=type(exc).__name__)
+            except Exception:
+                logger.warning("Could not record scan failure; inspect activity ledger and storage permissions")
         finally:
             with self._audit_lock:
-                self._audit_state.update(running=False,done=True,cancelling=False,current_check='',
+                self._audit_state.update(
+                    running=False,
+                    done=True,
+                    cancelling=False,
+                    current_check="",
                     generated_utc=datetime.now(timezone.utc).isoformat(),
-                    rollback_available_finding_ids=sorted(self._rollback_cache))
+                    rollback_available_finding_ids=sorted(self._rollback_cache),
+                )
 
     def get_audit_progress(self) -> dict[str, object]:
         with self._audit_lock:
@@ -528,7 +587,8 @@ class DesktopApi:
 
     def fix_finding(self, finding_id: str) -> dict[str, object]:
         with self._audit_lock:
-            if self._audit_state.get('running'):return {'error':'Wait for the current scan or cancel it before changing settings.'}
+            if self._audit_state.get("running"):
+                return {"error": "Wait for the current scan or cancel it before changing settings."}
         from sentinelaudit.audit.base import CheckContext
         from sentinelaudit.audit.engine import enrich_finding
         from sentinelaudit.services.audit_registry import get_check_by_id
@@ -608,7 +668,8 @@ class DesktopApi:
 
     def rollback_fix(self, finding_id: str) -> dict[str, object]:
         with self._audit_lock:
-            if self._audit_state.get('running'):return {'error':'Wait for the current scan or cancel it before changing settings.'}
+            if self._audit_state.get("running"):
+                return {"error": "Wait for the current scan or cancel it before changing settings."}
         from sentinelaudit.audit.base import CheckContext
         from sentinelaudit.audit.engine import enrich_finding
         from sentinelaudit.services.audit_registry import get_check_by_id
@@ -692,8 +753,16 @@ class DesktopApi:
             if not ok_session and err:
                 return {"saved_to": None, **err}
         with self._audit_lock:
-            if self._audit_state.get('running') or self._audit_state.get('cancelled') or self._audit_state.get('error') or not self._last_findings:
-                return {'saved_to':None,'error':'Complete a successful audit before exporting. Partial/cancelled scans are not exported as complete reports.'}
+            if (
+                self._audit_state.get("running")
+                or self._audit_state.get("cancelled")
+                or self._audit_state.get("error")
+                or not self._last_findings
+            ):
+                return {
+                    "saved_to": None,
+                    "error": "Complete a successful audit before exporting. Partial/cancelled scans are not exported as complete reports.",
+                }
             export_findings = list(self._last_findings)
             export_generated_utc = self._last_generated_utc
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%SZ")
@@ -751,11 +820,14 @@ class DesktopApi:
         out_path = Path(chosen_path)
         try:
             import tempfile
-            fd,temporary=tempfile.mkstemp(prefix='.sentinel-',suffix='.tmp',dir=out_path.parent)
+
+            fd, temporary = tempfile.mkstemp(prefix=".sentinel-", suffix=".tmp", dir=out_path.parent)
             try:
-                with os.fdopen(fd,'wb') as output:
-                    output.write(content);output.flush();os.fsync(output.fileno())
-                os.replace(temporary,out_path)
+                with os.fdopen(fd, "wb") as output:
+                    output.write(content)
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.replace(temporary, out_path)
             finally:
                 Path(temporary).unlink(missing_ok=True)
             return {"saved_to": str(out_path)}
@@ -825,7 +897,7 @@ class DesktopApi:
             try:
                 self._window.show()
             except Exception:
-                pass
+                logger.warning("on_start: optional operation or cleanup failed; inspect application state")
             return
 
         try:
@@ -840,13 +912,13 @@ class DesktopApi:
                 try:
                     self._window.show()
                 except Exception:
-                    pass
+                    logger.warning("on_start: optional operation or cleanup failed; inspect application state")
         except Exception:
             self._tray = None
             try:
                 self._window.show()
             except Exception:
-                pass
+                logger.warning("on_start: optional operation or cleanup failed; inspect application state")
 
     def _tray_open(self) -> None:
         if not self._window:
@@ -856,7 +928,7 @@ class DesktopApi:
             try:
                 self._window.restore()
             except Exception:
-                pass
+                logger.warning("_tray_open: optional operation or cleanup failed; inspect application state")
         except (AttributeError, TypeError) as exc:
             logger.warning("Window closing hook registration failed: %s", exc)
 
@@ -895,13 +967,16 @@ class DesktopApi:
             if worker and worker.is_alive():
                 worker.join(timeout=30)
                 if worker.is_alive():
-                    return {'ok':False,'error':'A Windows check is still finishing. Wait for cancellation, then exit again.'}
+                    return {
+                        "ok": False,
+                        "error": "A Windows check is still finishing. Wait for cancellation, then exit again.",
+                    }
             self._allow_exit = True
             try:
                 if self._tray is not None:
                     self._tray.stop()
             except Exception:
-                pass
+                logger.warning("exit_app: optional operation or cleanup failed; inspect application state")
             self._window.destroy()
             return {"ok": True}
         except Exception:

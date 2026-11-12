@@ -25,12 +25,12 @@
     "audit/checks/windows_update.py": "6377bb822f01e1832f95b9a2e55831906d55e6fc4f9865d02533cb5566beff2a",
     "audit/checks/windows_update_policy.py": "0798defe24d344ab91ef813026eabfd4802c4f5c89ab4b8cf6113c58b1f452d4",
     "audit/engine.py": "8e3b15b9f9eab7239695014cfbc13f3b5531a243e25a4fa03e91ac4b10c05d95",
-    "models.py": "104d57c51064ef2648014afb4f9d5cb31c23f8d1e442f112480d9c0fc0228e5f",
+    "models.py": "e8402b87b0a1101d38a01360b06658b6fc5fbcaa97438faf956b473942c44178",
     "posture.py": "4e1d4b8b4809997b6f906a56bb3d94a7b7e137fcc5838092949a2d905b6e73d0",
     "reporting/__init__.py": "5384bfdb2df380b6557cc7a71d16891415bccaa87699406e236f752c6415389f",
     "reporting/excel.py": "d743cdfcc8075b4f5cf706ce90d8bfc7b400659fcaecceb7ba0fe498d2e394eb",
     "services/__init__.py": "5384bfdb2df380b6557cc7a71d16891415bccaa87699406e236f752c6415389f",
     "services/audit_registry.py": "448c8b16dd6156784adcabec4029f5c7415b2652f9de2a447d3709ec5a020114",
-    "windows.py": "2564e99ef22bcc2f1b246ee195dd901de8fef62215aa565aa879d7df9b76c60b"
+    "windows.py": "d3c3fcc1cbed68835fb299a2becf405439ffd921ec7ebc238c942f0ec378c97f"
   }
 }

@@ -1,0 +1,2 @@
+[bandit]
+exclude = ./.git/,./frontend/node_modules/,./frontend/dist/,./.venv/,./venv/,./build/,./dist/

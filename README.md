@@ -1,5 +1,8 @@
 # SentinelAudit
 
+Security workflow and package-layout corrections: see [SECURITY_CI_FIX.md](SECURITY_CI_FIX.md) for validation and remaining dependency warnings.
+
+
 ## Scan layout correction — 24 October 2026
 
 The hardening score now occupies its own centered row. Scan progress/current-check text and sync messages appear in separate wrapping blocks, including narrow windows. Duplicate pass/fail/unknown cards were removed from the sidebar because these counts already appear above. Scores are marked provisional during scanning. The matching Client update preserves older queued reports instead of pruning them at capacity. See `SCAN_AND_SYNC.md` for integration and remaining limitations.
